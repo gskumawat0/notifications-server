@@ -5,6 +5,8 @@ const mongoose = require('mongoose');
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
 
+const Notification = require('./models/notification');
+
 
 process.env.NODE_ENV === 'development' && mongoose.set('debug', true);
 app.use(bodyparser.json({limit: '5mb', extended: true}));    
@@ -48,6 +50,34 @@ io.on('connection', (socket)=>{
     socket.on('disconnect', () => {
         socket.broadcast.emit('add_notification', 'user logged out')
     })
+})
+
+
+
+app.get('/', (req, res)=>{
+    req.io.sockets.emit('add_notification', `user connected with ip ${req.ip}`);
+    return res.json({
+        message: `send a post request with notification.`
+    })
+})
+
+app.post('/', async (req, res)=>{
+    try{
+        let {notification} = req.body;
+        let newNotification = await Notification.create({notification});
+        req.io.sockets.emit('add_notification', notification)
+        return res.json({
+            success: true,
+            notification: newNotification
+        })
+    }
+    catch(err){
+        return res.json({
+            success: false,
+            message: err.message
+        })
+    }
+
 })
 
 server.listen(process.env.PORT, ()=>{
