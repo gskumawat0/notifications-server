@@ -5,6 +5,10 @@ const notificationSchema = new mongoose.Schema({
     date: {
         type: Date,
         default: Date.now()
+    },
+    viewed: {
+        type: Boolean,
+        default: false
     }
 })
 

@@ -44,28 +44,45 @@ app.use((req, res, next)=>{
 
 
 
-io.on('connection', (socket)=>{
-    socket.broadcast.emit('add_notification', 'a new user connected')
-      
+io.on('connection',  async (socket)=>{
+    let date = Date.now();
+    let notifications = await getUnviewedNotifications()
+    console.log('connected');
+    io.to(socket.id).emit('get_notifications', notifications);
+    socket.broadcast.emit('add_notification', {notification: 'a new user connected', date: date, _id: date, viewed: false})
+    
+    socket.on('view_notification', viewNotification)
     socket.on('disconnect', () => {
-        socket.broadcast.emit('add_notification', 'user logged out')
+        date = Date.now()
+        socket.broadcast.emit('add_notification', {notification: 'user logged out', date: date, _id: date, viewed: false})
     })
 })
 
+function getUnviewedNotifications(){
+    try {
+        return Notification.find({viewed: false})
+        
+    } 
+    catch (err) {
+        console.log(err)
+        return []
+    }
+}
 
 
-app.get('/', (req, res)=>{
-    req.io.sockets.emit('add_notification', `user connected with ip ${req.ip}`);
-    return res.json({
-        message: `send a post request with notification.`
-    })
-})
+async function viewNotification(_id){
+    try {
+        await Notification.findOneAndUpdate({_id}, {$set: {viewed: true}})
+    } catch (error) {
+        console.log(error)
+    }
+}
 
 app.post('/', async (req, res)=>{
     try{
         let {notification} = req.body;
         let newNotification = await Notification.create({notification});
-        req.io.sockets.emit('add_notification', notification)
+        req.io.sockets.emit('add_notification', newNotification)
         return res.json({
             success: true,
             notification: newNotification
